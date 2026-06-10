@@ -397,8 +397,13 @@ public class McpServerManager
         var existingToolsByName = existingTools.ToDictionary(t => t.Name);
         var remoteToolNames = new HashSet<string>(toolEntries.Select(t => t.Name));
 
+        var toolsSeenThisSync = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var entry in toolEntries)
         {
+            if (!toolsSeenThisSync.Add(entry.Name))
+                continue;
+
             if (existingToolsByName.TryGetValue(entry.Name, out var existingTool))
             {
                 var needsUpdate =
