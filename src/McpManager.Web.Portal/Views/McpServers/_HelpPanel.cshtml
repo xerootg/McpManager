@@ -27,9 +27,10 @@
     <div class="text-sm text-base-content/70">
         <p class="mb-2">Configure a local MCP server:</p>
         <ul class="list-disc list-inside space-y-1">
-            <li><strong>NPM Package</strong>: Enter the npm package name (runs via <code>npx -y</code>)</li>
+            <li><strong>Package Runner</strong>: <code>npx</code> for Node/npm packages or <code>uvx</code> for Python/PyPI packages</li>
+            <li><strong>Package</strong>: The package name (runs via <code>npx -y</code> or <code>uvx</code>)</li>
             <li><strong>Additional Args</strong>: Extra arguments passed after the package name</li>
-            <li><strong>Advanced</strong>: Toggle to use a custom command instead of npx</li>
+            <li><strong>Advanced</strong>: Toggle to use a custom command instead</li>
             <li><strong>Env Vars</strong>: Environment variables for the process</li>
         </ul>
     </div>

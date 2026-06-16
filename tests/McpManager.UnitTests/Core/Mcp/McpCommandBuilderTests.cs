@@ -39,24 +39,130 @@ public class McpCommandBuilderTests
     }
 
     [Fact]
-    public void BuildNpxCommand_NoExtraArguments_ReturnsYFlagAndPackage()
+    public void BuildPackageRunnerCommand_Npx_NoExtraArguments_ReturnsYFlagAndPackage()
     {
-        var (command, arguments) = McpCommandBuilder.BuildNpxCommand("@scope/pkg", null);
+        var (command, arguments) = McpCommandBuilder.BuildPackageRunnerCommand(
+            PackageRunner.Npx,
+            "@scope/pkg",
+            null
+        );
 
         command.Should().Be("npx");
         arguments.Should().Equal("-y", "@scope/pkg");
     }
 
     [Fact]
-    public void BuildNpxCommand_WithExtraArguments_SplitsByNewlineAndTrims()
+    public void BuildPackageRunnerCommand_Npx_WithExtraArguments_SplitsByNewlineAndTrims()
     {
-        var (command, arguments) = McpCommandBuilder.BuildNpxCommand(
+        var (command, arguments) = McpCommandBuilder.BuildPackageRunnerCommand(
+            PackageRunner.Npx,
             "@scope/pkg",
             "  --flag\n--other  \n\n--last"
         );
 
         command.Should().Be("npx");
         arguments.Should().Equal("-y", "@scope/pkg", "--flag", "--other", "--last");
+    }
+
+    [Fact]
+    public void BuildPackageRunnerCommand_Uvx_OmitsYFlagAndPrefixesPackage()
+    {
+        var (command, arguments) = McpCommandBuilder.BuildPackageRunnerCommand(
+            PackageRunner.Uvx,
+            "mcp-server-git",
+            null
+        );
+
+        command.Should().Be("uvx");
+        arguments.Should().Equal("mcp-server-git");
+    }
+
+    [Fact]
+    public void BuildPackageRunnerCommand_Uvx_WithExtraArguments_AppendsAfterPackage()
+    {
+        var (command, arguments) = McpCommandBuilder.BuildPackageRunnerCommand(
+            PackageRunner.Uvx,
+            "mcp-server-git",
+            "--repository\n/tmp/repo"
+        );
+
+        command.Should().Be("uvx");
+        arguments.Should().Equal("mcp-server-git", "--repository", "/tmp/repo");
+    }
+
+    [Fact]
+    public void BuildPackageRunnerCommand_BlankPackage_IsOmitted()
+    {
+        var (command, arguments) = McpCommandBuilder.BuildPackageRunnerCommand(
+            PackageRunner.Uvx,
+            "  ",
+            null
+        );
+
+        command.Should().Be("uvx");
+        arguments.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseSimplePackageCommand_NpxWithYFlag_ReturnsNpxRunnerPackageAndExtras()
+    {
+        var result = McpCommandBuilder.ParseSimplePackageCommand(
+            "npx",
+            ["-y", "@scope/pkg", "/tmp", "--verbose"]
+        );
+
+        result.Should().NotBeNull();
+        result!.Runner.Should().Be(PackageRunner.Npx);
+        result.Package.Should().Be("@scope/pkg");
+        result.ExtraArguments.Should().Equal("/tmp", "--verbose");
+    }
+
+    [Fact]
+    public void ParseSimplePackageCommand_Uvx_ReturnsUvxRunnerPackageAndExtras()
+    {
+        var result = McpCommandBuilder.ParseSimplePackageCommand(
+            "uvx",
+            ["mcp-server-git", "--repository", "/tmp/repo"]
+        );
+
+        result.Should().NotBeNull();
+        result!.Runner.Should().Be(PackageRunner.Uvx);
+        result.Package.Should().Be("mcp-server-git");
+        result.ExtraArguments.Should().Equal("--repository", "/tmp/repo");
+    }
+
+    [Fact]
+    public void ParseSimplePackageCommand_NpxWithoutYFlag_ReturnsNull()
+    {
+        // Without the leading "-y" this is a custom command, not simple mode.
+        var result = McpCommandBuilder.ParseSimplePackageCommand("npx", ["@scope/pkg"]);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseSimplePackageCommand_CustomCommand_ReturnsNull()
+    {
+        var result = McpCommandBuilder.ParseSimplePackageCommand("python", ["-m", "server"]);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseSimplePackageCommand_RoundTripsBuildPackageRunnerCommand()
+    {
+        var (command, arguments) = McpCommandBuilder.BuildPackageRunnerCommand(
+            PackageRunner.Uvx,
+            "mcp-server-git",
+            "--repository\n/tmp/repo"
+        );
+
+        var result = McpCommandBuilder.ParseSimplePackageCommand(command, arguments);
+
+        result.Should().NotBeNull();
+        result!.Runner.Should().Be(PackageRunner.Uvx);
+        result.Package.Should().Be("mcp-server-git");
+        result.ExtraArguments.Should().Equal("--repository", "/tmp/repo");
     }
 
     [Fact]

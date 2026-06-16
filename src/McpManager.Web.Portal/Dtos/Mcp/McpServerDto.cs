@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using McpManager.Core.Data.Models.Mcp;
+using McpManager.Core.Mcp;
 using McpManager.Web.Portal.Dtos.Contracts;
 
 namespace McpManager.Web.Portal.Dtos.Mcp;
@@ -29,10 +30,13 @@ public class McpServerDto : IHasAuth, IHasCustomHeaders
     [Display(Name = "Custom Headers")]
     public List<CustomHeaderDto> CustomHeaders { get; set; } = [];
 
-    // Stdio fields — Simple mode (npx package)
-    [Display(Name = "NPM Package")]
+    // Stdio fields — Simple mode (package runner + package)
+    [Display(Name = "Package Runner")]
+    public PackageRunner PackageRunner { get; set; } = PackageRunner.Npx;
+
+    [Display(Name = "Package")]
     [MaxLength(500)]
-    public string NpmPackage { get; set; }
+    public string Package { get; set; }
 
     [Display(Name = "Additional Arguments")]
     public string ExtraArguments { get; set; }

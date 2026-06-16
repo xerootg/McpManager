@@ -333,7 +333,11 @@ public class McpServersController : BaseController
     {
         var (command, arguments) = dto.UseAdvancedCommand
             ? McpCommandBuilder.BuildCustomCommand(dto.Command, dto.ArgumentsText)
-            : McpCommandBuilder.BuildNpxCommand(dto.NpmPackage, dto.ExtraArguments);
+            : McpCommandBuilder.BuildPackageRunnerCommand(
+                dto.PackageRunner,
+                dto.Package,
+                dto.ExtraArguments
+            );
         var preview = McpCommandBuilder.BuildCommandPreview(command, arguments);
         return Json(new { Preview = preview });
     }
@@ -551,7 +555,11 @@ public class McpServersController : BaseController
         {
             var (cmd, args) = dto.UseAdvancedCommand
                 ? McpCommandBuilder.BuildCustomCommand(dto.Command, dto.ArgumentsText)
-                : McpCommandBuilder.BuildNpxCommand(dto.NpmPackage, dto.ExtraArguments);
+                : McpCommandBuilder.BuildPackageRunnerCommand(
+                    dto.PackageRunner,
+                    dto.Package,
+                    dto.ExtraArguments
+                );
             server.Command = cmd;
             server.Arguments = args;
         }
@@ -616,16 +624,17 @@ public class McpServersController : BaseController
             OpenApiSpecification = server.OpenApiSpecification,
         };
 
-        if (
+        var simple =
             server.TransportType == McpTransportType.Stdio
-            && string.Equals(server.Command, "npx", StringComparison.OrdinalIgnoreCase)
-            && server.Arguments.Count >= 2
-            && server.Arguments[0] == "-y"
-        )
+                ? McpCommandBuilder.ParseSimplePackageCommand(server.Command, server.Arguments)
+                : null;
+
+        if (simple != null)
         {
-            dto.NpmPackage = server.Arguments[1];
+            dto.PackageRunner = simple.Runner;
+            dto.Package = simple.Package;
             dto.ExtraArguments =
-                server.Arguments.Count > 2 ? string.Join("\n", server.Arguments.Skip(2)) : null;
+                simple.ExtraArguments.Count > 0 ? string.Join("\n", simple.ExtraArguments) : null;
             dto.UseAdvancedCommand = false;
         }
         else

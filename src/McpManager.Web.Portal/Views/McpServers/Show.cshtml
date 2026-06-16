@@ -175,21 +175,24 @@
                 </div>
             }
         } else {
-            var isNpx = string.Equals(Model.Command, "npx", StringComparison.OrdinalIgnoreCase) &&
-                        Model.Arguments.Count >= 2 && Model.Arguments[0] == "-y";
+            var simple = McpCommandBuilder.ParseSimplePackageCommand(Model.Command, Model.Arguments);
             <div class="card bg-base-100 border border-base-200 mb-4">
                 <div class="card-body p-4">
                     <h3 class="font-semibold text-sm">Local Server</h3>
                     <div class="grid grid-cols-12 gap-3">
-                        @if (isNpx) {
-                            <div class="col-span-12">
-                                <label class="text-xs text-base-content/60">NPM Package</label>
-                                <p class="font-mono text-sm">@Model.Arguments[1]</p>
+                        @if (simple != null) {
+                            <div class="col-span-12 md:col-span-4">
+                                <label class="text-xs text-base-content/60">Package Runner</label>
+                                <p class="font-mono text-sm">@Model.Command</p>
                             </div>
-                            @if (Model.Arguments.Count > 2) {
+                            <div class="col-span-12 md:col-span-8">
+                                <label class="text-xs text-base-content/60">Package</label>
+                                <p class="font-mono text-sm">@simple.Package</p>
+                            </div>
+                            @if (simple.ExtraArguments.Count > 0) {
                                 <div class="col-span-12">
                                     <label class="text-xs text-base-content/60">Additional Arguments</label>
-                                    <p class="font-mono text-sm">@string.Join(" ", Model.Arguments.Skip(2))</p>
+                                    <p class="font-mono text-sm">@string.Join(" ", simple.ExtraArguments)</p>
                                 </div>
                             }
                         } else {

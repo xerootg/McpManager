@@ -25,9 +25,24 @@
         </div>
     </div>
 } else {
-    <!-- Simple mode: NPM package -->
+    <!-- Simple mode: package runner + package -->
     <div class="grid grid-cols-12 gap-3">
-        <form-field asp-for="NpmPackage" class="col-span-12" placeholder="e.g. @@modelcontextprotocol/server-filesystem" />
+        <div class="col-span-12 md:col-span-4">
+            <fieldset class="fieldset pb-0">
+                <legend class="fieldset-legend">Package Runner</legend>
+                <select asp-for="PackageRunner" class="select select-bordered w-full stdio-runner-select">
+                    @foreach (var (value, label) in new[] { (PackageRunner.Npx, "npx (Node / npm)"), (PackageRunner.Uvx, "uvx (Python / PyPI)") }) {
+                        if (Model.PackageRunner == value) {
+                            <option value="@value" selected>@label</option>
+                        } else {
+                            <option value="@value">@label</option>
+                        }
+                    }
+                </select>
+                <span asp-validation-for="PackageRunner" class="text-error text-sm"></span>
+            </fieldset>
+        </div>
+        <form-field asp-for="Package" class="col-span-12 md:col-span-8" placeholder="e.g. @@modelcontextprotocol/server-filesystem or mcp-server-git" />
         <div class="col-span-12">
             <fieldset class="fieldset pb-0">
                 <legend class="fieldset-legend">Additional Arguments</legend>

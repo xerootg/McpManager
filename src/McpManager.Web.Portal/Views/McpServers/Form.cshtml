@@ -173,7 +173,7 @@
             <h3 class="font-semibold text-sm mb-1">Transport Types</h3>
             <ul class="list-disc list-inside text-base-content/70 space-y-1">
                 <li><strong>Remote (HTTP)</strong> &mdash; provide a URL and optional authentication (Bearer token, Basic auth, or API key)</li>
-                <li><strong>Local (Stdio)</strong> &mdash; run a local command. Use simple mode for npx packages or advanced mode for custom commands</li>
+                <li><strong>Local (Stdio)</strong> &mdash; run a local command. Use simple mode for npx (Node) or uvx (Python) packages, or advanced mode for custom commands</li>
             </ul>
         </div>
         <div>
@@ -256,11 +256,16 @@
 
         // Debounced input handler for command preview fields
         $(document)
-            .off("input.cmdPreview", '[name="NpmPackage"], [name="ExtraArguments"], [name="Command"], [name="ArgumentsText"]')
-            .on("input.cmdPreview", '[name="NpmPackage"], [name="ExtraArguments"], [name="Command"], [name="ArgumentsText"]', function() {
+            .off("input.cmdPreview", '[name="Package"], [name="ExtraArguments"], [name="Command"], [name="ArgumentsText"]')
+            .on("input.cmdPreview", '[name="Package"], [name="ExtraArguments"], [name="Command"], [name="ArgumentsText"]', function() {
                 clearTimeout(commandPreviewTimer);
                 commandPreviewTimer = setTimeout(updateCommandPreview, 300);
             });
+
+        // The package runner is a <select> — refresh the preview immediately on change
+        $(document)
+            .off("change.cmdPreview", '[name="PackageRunner"]')
+            .on("change.cmdPreview", '[name="PackageRunner"]', updateCommandPreview);
 
         // Initialize command preview on page load if Stdio is selected
         initCommandPreview();
@@ -330,9 +335,16 @@
                 var args = config.args || [];
 
                 if (cmd === 'npx' && args.length > 0 && args[0] === '-y') {
-                    // Simple npx mode — set values before triggering transport update
-                    setField('NpmPackage', args[1] || '');
+                    // Simple npx mode (Node / npm) — set values before triggering transport update
+                    setField('PackageRunner', 'Npx');
+                    setField('Package', args[1] || '');
                     setField('ExtraArguments', args.slice(2).join('\n'));
+                    setField('UseAdvancedCommand', false);
+                } else if (cmd === 'uvx' && args.length > 0) {
+                    // Simple uvx mode (Python / PyPI)
+                    setField('PackageRunner', 'Uvx');
+                    setField('Package', args[0] || '');
+                    setField('ExtraArguments', args.slice(1).join('\n'));
                     setField('UseAdvancedCommand', false);
                 } else {
                     // Advanced mode

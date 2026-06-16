@@ -51,7 +51,7 @@
             <ul class="list-disc list-inside text-base-content/70 space-y-1">
                 <li><strong>HTTP</strong> &mdash; connects to a remote MCP endpoint via HTTP</li>
                 <li><strong>OpenAPI</strong> &mdash; exposes a REST API as MCP tools via OpenAPI spec</li>
-                <li><strong>Stdio</strong> &mdash; runs a local process (e.g. npx package)</li>
+                <li><strong>Stdio</strong> &mdash; runs a local process (e.g. an npx or uvx package)</li>
             </ul>
         </div>
         <div>
@@ -82,11 +82,8 @@
         columns.Add(model => model.Uri).Titled("Endpoint")
             .RenderedAs(m => {
                 if (m.TransportType is McpTransportType.Http or McpTransportType.Sse or McpTransportType.OpenApi) return m.Uri;
-                // Show npx package name if applicable, otherwise command
-                if (string.Equals(m.Command, "npx", StringComparison.OrdinalIgnoreCase) &&
-                    m.Arguments.Count >= 2 && m.Arguments[0] == "-y")
-                    return m.Arguments[1];
-                return m.Command;
+                // Show the package name for simple npx/uvx servers, otherwise the raw command
+                return McpCommandBuilder.ParseSimplePackageCommand(m.Command, m.Arguments)?.Package ?? m.Command;
             });
         columns.Add(model => model.LastSyncTime).Titled("Last Sync").Formatted("{0:g}");
         columns.Add(model => model.Tools.Count).Titled("Tools");

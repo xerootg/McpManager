@@ -701,15 +701,17 @@ public class McpServersControllerTests : IClassFixture<WebFactoryFixture>
             {
                 ["AntiForgery"] = token,
                 ["UseAdvancedCommand"] = "false",
-                ["NpmPackage"] = "@modelcontextprotocol/server-filesystem",
+                ["PackageRunner"] = "Npx",
+                ["Package"] = "@modelcontextprotocol/server-filesystem",
             }
         );
 
-        // PreviewCommand is a pure JSON endpoint that picks the npx branch when
-        // UseAdvancedCommand=false: BuildNpxCommand -> ("npx", ["-y", pkg]) ->
-        // BuildCommandPreview joins with spaces. Nothing else exercises this
-        // action; a regression that flips the ternary (advanced vs npx) or
-        // drops the "-y" prefix surfaces directly in the returned preview.
+        // PreviewCommand is a pure JSON endpoint that picks the package-runner
+        // branch when UseAdvancedCommand=false: BuildPackageRunnerCommand(Npx) ->
+        // ("npx", ["-y", pkg]) -> BuildCommandPreview joins with spaces. Nothing
+        // else exercises this action; a regression that flips the ternary
+        // (advanced vs simple) or drops the "-y" prefix surfaces directly in the
+        // returned preview.
         var response = await client.PostAsync("/McpServers/PreviewCommand", form, ct);
         response.EnsureSuccessStatusCode();
 
@@ -722,7 +724,36 @@ public class McpServersControllerTests : IClassFixture<WebFactoryFixture>
     }
 
     [Fact]
-    public async Task GetEdit_WithNpxStdioServer_RendersNpmPackageAndExtraArgumentsInSimpleMode()
+    public async Task PostPreviewCommand_UvxMode_ReturnsUvxCommandWithoutYFlag()
+    {
+        var client = CreateAdminClient();
+        var ct = TestContext.Current.CancellationToken;
+        await _factory.SignInAsAdminAsync(client, ct);
+
+        var token = await HarvestAntiforgeryAsync(client, "/McpServers/Create", ct);
+        var form = new FormUrlEncodedContent(
+            new Dictionary<string, string>
+            {
+                ["AntiForgery"] = token,
+                ["UseAdvancedCommand"] = "false",
+                ["PackageRunner"] = "Uvx",
+                ["Package"] = "mcp-server-git",
+            }
+        );
+
+        // The uvx runner branch must produce a bare "uvx <package>" (no "-y"
+        // prefix, which is npx-specific). This pins the runner switch in
+        // BuildPackageRunnerCommand end-to-end through the JSON endpoint.
+        var response = await client.PostAsync("/McpServers/PreviewCommand", form, ct);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("preview").GetString().Should().Be("uvx mcp-server-git");
+    }
+
+    [Fact]
+    public async Task GetEdit_WithNpxStdioServer_RendersPackageAndExtraArgumentsInSimpleMode()
     {
         var client = CreateAdminClient();
         var ct = TestContext.Current.CancellationToken;
@@ -751,7 +782,7 @@ public class McpServersControllerTests : IClassFixture<WebFactoryFixture>
 
         // Only an `npx -y <pkg>` Stdio server takes the simple-mode branch in
         // McpServersController.MapServerToDto (UseAdvancedCommand=false), which
-        // sets NpmPackage=Arguments[1] and ExtraArguments=Arguments.Skip(2)
+        // sets Package=Arguments[1] and ExtraArguments=Arguments.Skip(2)
         // newline-joined. Every other Edit test seeds an HTTP server and only
         // exercises the advanced else-branch, so this is the sole cover for the
         // npx detection: a regression that mis-slices the args (e.g. Skip(1), or
@@ -765,7 +796,7 @@ public class McpServersControllerTests : IClassFixture<WebFactoryFixture>
             .OpenAsync(req => req.Content(html), ct);
 
         document
-            .QuerySelector("input[name='NpmPackage']")!
+            .QuerySelector("input[name='Package']")!
             .GetAttribute("value")
             .Should()
             .Be("@modelcontextprotocol/server-filesystem");
@@ -773,6 +804,57 @@ public class McpServersControllerTests : IClassFixture<WebFactoryFixture>
         var extraArguments = document.QuerySelector("textarea[name='ExtraArguments']")!.TextContent;
         extraArguments.Should().Contain("/tmp");
         extraArguments.Should().Contain("--verbose");
+    }
+
+    [Fact]
+    public async Task GetEdit_WithUvxStdioServer_RendersPackageAndSelectsUvxRunnerInSimpleMode()
+    {
+        var client = CreateAdminClient();
+        var ct = TestContext.Current.CancellationToken;
+        await _factory.SignInAsAdminAsync(client, ct);
+
+        McpServer server;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var manager = scope.ServiceProvider.GetRequiredService<McpServerManager>();
+            server = await manager.Create(
+                new McpServer
+                {
+                    Name = $"uvx-{Guid.NewGuid():N}",
+                    TransportType = McpTransportType.Stdio,
+                    Command = "uvx",
+                    Arguments = ["mcp-server-git", "--repository", "/tmp/repo"],
+                }
+            );
+        }
+
+        // A `uvx <pkg>` server must round-trip into simple mode with the Uvx
+        // runner pre-selected (Package=Arguments[0], ExtraArguments=Skip(1)).
+        // This guards the uvx branch of MapServerToDto/ParseSimplePackageCommand
+        // — a regression treating uvx as a custom command would fall to the
+        // advanced else-branch and render Command/Arguments instead.
+        var response = await client.GetAsync($"/McpServers/Edit/{server.Id}", ct);
+        response.EnsureSuccessStatusCode();
+
+        var html = await response.Content.ReadAsStringAsync(ct);
+        var document = await BrowsingContext
+            .New(Configuration.Default)
+            .OpenAsync(req => req.Content(html), ct);
+
+        document
+            .QuerySelector("input[name='Package']")!
+            .GetAttribute("value")
+            .Should()
+            .Be("mcp-server-git");
+
+        var selectedRunner = document
+            .QuerySelector("select[name='PackageRunner'] option:checked")!
+            .GetAttribute("value");
+        selectedRunner.Should().Be("Uvx");
+
+        var extraArguments = document.QuerySelector("textarea[name='ExtraArguments']")!.TextContent;
+        extraArguments.Should().Contain("--repository");
+        extraArguments.Should().Contain("/tmp/repo");
     }
 
     private async Task<McpServer> SeedHttpServerAsync(string name)
