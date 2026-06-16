@@ -15,7 +15,12 @@ build-image:
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build -t "$IMAGE_TAG" .
+    # --network=host makes BuildKit's RUN steps use the runner pod's eth0 (flannel
+    # overlay, MTU 1450 with MSS clamping) instead of BuildKit's own 1500-MTU
+    # sandbox bridge — which BuildKit does NOT inherit from `dockerd --mtu`. Without
+    # it, large egress (dotnet restore from api.nuget.org) is blackholed and the job
+    # times out. See pipeline #618.
+    - docker build --network=host -t "$IMAGE_TAG" .
     - docker push "$IMAGE_TAG"
   only:
     - main
