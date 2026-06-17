@@ -119,10 +119,51 @@ builder.Services.AddIdentity();
 
 builder.Services.AddFlashMessage();
 
+// OIDC single sign-on (optional). Bound from the "Oidc" config section / Oidc__* env vars.
+var oidcOptions =
+    configuration.GetSection(OidcOptions.SectionName).Get<OidcOptions>() ?? new OidcOptions();
+builder.Services.AddSingleton(oidcOptions);
+
 // API key authentication for MCP endpoint
-builder
+var authenticationBuilder = builder
     .Services.AddAuthentication()
     .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthHandler>(ApiKeyAuthHandler.SchemeName, null);
+
+if (oidcOptions.IsConfigured)
+{
+    authenticationBuilder.AddOpenIdConnect(
+        OidcOptions.SchemeName,
+        oidcOptions.DisplayName,
+        options =>
+        {
+            options.Authority = oidcOptions.Authority;
+            options.ClientId = oidcOptions.ClientId;
+            options.ClientSecret = oidcOptions.ClientSecret;
+            options.RequireHttpsMetadata = oidcOptions.RequireHttpsMetadata;
+            options.CallbackPath = oidcOptions.CallbackPath;
+            options.ResponseType = "code";
+            options.UsePkce = true;
+            options.SaveTokens = false;
+            // Pull email/name from the userinfo endpoint so matching works even when
+            // the provider omits them from the id_token.
+            options.GetClaimsFromUserInfoEndpoint = true;
+            // Sign in to the temporary external cookie; AuthController completes the
+            // login by matching the email to a local account.
+            options.SignInScheme = IdentityConstants.ExternalScheme;
+
+            options.Scope.Clear();
+            foreach (
+                var scope in oidcOptions.Scope.Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                )
+            )
+            {
+                options.Scope.Add(scope);
+            }
+        }
+    );
+}
 
 builder
     .Services.AddDataProtection()

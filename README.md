@@ -161,6 +161,34 @@ Generate API keys from the **API Keys** page in the admin panel.
 | **Stdio** | Run local MCP servers as CLI processes | Environment variables |
 | **OpenAPI** | Auto-convert OpenAPI specs to MCP tools | Bearer token, API key, Basic auth |
 
+### Single Sign-On (OIDC)
+
+MCP Manager can authenticate users against any OpenID Connect provider (e.g. Authentik, Keycloak, Authelia, Entra ID) in addition to the built-in email/password login. SSO is enabled simply by providing the configuration below as environment variables — when the authority, client ID, and client secret are all present, a **Sign in with …** button appears on the login page.
+
+Users are matched to local accounts **by email address**. By default an SSO login with no matching local account is rejected; set `Oidc__AutoProvision=true` to create accounts on first sign-in instead (new accounts start with no permissions until an admin grants them).
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `Oidc__Authority` | ✅ | — | Issuer / authority URL. For Authentik this is the provider URL, e.g. `https://authentik.example.com/application/o/mcpmanager/` |
+| `Oidc__ClientId` | ✅ | — | OAuth client ID from the provider |
+| `Oidc__ClientSecret` | ✅ | — | OAuth client secret from the provider |
+| `Oidc__Scope` | | `openid profile email` | Space-separated scopes (must include `email`) |
+| `Oidc__DisplayName` | | `Single Sign-On` | Label shown on the sign-in button, e.g. `Authentik` |
+| `Oidc__AutoProvision` | | `false` | Create a local account on first SSO login when no email match exists |
+| `Oidc__CallbackPath` | | `/signin-oidc` | Redirect path; register `{app-origin}/signin-oidc` as a redirect URI on the provider |
+| `Oidc__RequireHttpsMetadata` | | `true` | Require HTTPS for the provider metadata endpoint (only disable for plain-HTTP providers) |
+
+```bash
+docker run -p 5057:8080 -v mcpmanager-data:/app/data \
+  -e Oidc__Authority="https://authentik.example.com/application/o/mcpmanager/" \
+  -e Oidc__ClientId="your-client-id" \
+  -e Oidc__ClientSecret="your-client-secret" \
+  -e Oidc__DisplayName="Authentik" \
+  daniel3303/mcpmanager:latest
+```
+
+> **Note:** When running behind a reverse proxy that terminates TLS, ensure it forwards `X-Forwarded-Proto` so the OIDC redirect URIs are generated as `https://`. MCP Manager honours forwarded headers out of the box.
+
 ## Tech Stack
 
 - **Backend**: .NET 10, ASP.NET Core, EF Core, SQLite

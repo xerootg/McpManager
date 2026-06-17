@@ -5,6 +5,9 @@
     ViewData["Title"] = "Login";
     var error = ViewData["Error"]?.ToString();
     var invalidLogin = ViewData["InvalidLogin"] as string;
+    var oidcEnabled = ViewData["OidcEnabled"] as bool? ?? false;
+    var oidcDisplayName = ViewData["OidcDisplayName"] as string ?? "Single Sign-On";
+    var returnUrl = ViewData["ReturnUrl"] as string;
 }
 
 <div id="auth-layout">
@@ -39,6 +42,13 @@
                 <span id="loginBtnText">Sign in</span>
             </button>
         </form>
+
+        @if (oidcEnabled) {
+            <div class="divider my-6 text-base-content/50">or</div>
+            <a class="auth-btn block text-center" asp-action="ExternalLogin" asp-controller="Auth" asp-route-returnUrl="@returnUrl">
+                Sign in with @oidcDisplayName
+            </a>
+        }
 
         <p class="mt-8 text-center text-xs text-base-content/50">
             Proudly developed by <a href="https://danielapoliveira.com/" target="_blank" class="link">Daniel Oliveira</a>
