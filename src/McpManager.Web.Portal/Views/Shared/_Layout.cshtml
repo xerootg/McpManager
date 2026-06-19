@@ -191,6 +191,12 @@
                                     <span class="text-sm font-semibold">@user?.GivenName @user?.Surname</span>
                                 </li>
                                 <li>
+                                    <a asp-controller="Account" asp-action="ChangeEmail">
+                                        <icon name="identification" size="4"/>
+                                        Change Email
+                                    </a>
+                                </li>
+                                <li>
                                     <a asp-controller="Account" asp-action="ChangePassword">
                                         <icon name="key" size="4"/>
                                         Change Password

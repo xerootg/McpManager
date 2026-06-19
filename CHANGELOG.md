@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Optional OpenID Connect (OIDC) single sign-on, configured entirely through `Oidc__*` environment variables (tested with Authentik). When configured, the login page shows a "Sign in with …" button; users are matched to local accounts by email address. Unknown emails are denied by default, or auto-provisioned as new accounts when `Oidc__AutoProvision=true`. Password login remains available alongside SSO.
+- Self-service email address change for the signed-in user, via a new **Change Email** entry in the account menu (alongside Change Password). The new address must be unique; the username is kept in sync with it.
 
 ### Changed
 
