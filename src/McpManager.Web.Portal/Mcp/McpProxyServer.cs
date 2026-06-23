@@ -43,13 +43,14 @@ public class McpProxyServer
     {
         var allTools = await _toolRepository
             .GetAll()
+            .Include(t => t.McpServer)
             .Where(t => t.McpServer.IsActive)
             .ToListAsync(cancellationToken);
 
         var tools = allTools
             .Select(t => new Tool
             {
-                Name = t.Name,
+                Name = McpProxyHelpers.ApplyToolPrefix(t.McpServer.ToolPrefix, t.Name),
                 Description = t.CustomDescription ?? t.Description,
                 InputSchema = McpProxyHelpers.ParseInputSchema(
                     t.CustomInputSchema ?? t.InputSchema
@@ -73,10 +74,18 @@ public class McpProxyServer
             throw new McpProtocolException("Tool name is required", McpErrorCode.InvalidParams);
         }
 
-        var tool = await _toolRepository
+        // Tools are exposed under their server's prefix, so resolve the incoming
+        // (prefixed) name back to the tool whose prefixed name matches. The upstream
+        // server is then called with the tool's original, unprefixed name.
+        var candidates = await _toolRepository
             .GetAll()
+            .Include(t => t.McpServer)
             .Where(t => t.McpServer.IsActive)
-            .FirstOrDefaultAsync(t => t.Name == toolName, cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        var tool = candidates.FirstOrDefault(t =>
+            McpProxyHelpers.ApplyToolPrefix(t.McpServer.ToolPrefix, t.Name) == toolName
+        );
 
         if (tool == null)
         {
@@ -90,14 +99,15 @@ public class McpProxyServer
         var arguments = McpProxyHelpers.ConvertArguments(request.Params?.Arguments);
 
         _logger.LogInformation(
-            "Calling tool {ToolName} on server {ServerName}",
+            "Calling tool {ToolName} (exposed as {ExposedName}) on server {ServerName}",
+            tool.Name,
             toolName,
             tool.McpServer.Name
         );
 
         var result = await _mcpServerManager.CallTool(
             tool.McpServer,
-            toolName,
+            tool.Name,
             arguments,
             apiKeyName
         );

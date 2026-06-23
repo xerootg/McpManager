@@ -1,5 +1,6 @@
 @using McpManager.Core.Data.Models.Mcp
 @using McpManager.Web.Portal.Extensions
+@using McpManager.Web.Portal.Mcp
 @using McpManager.Web.Portal.Services
 @inject TokenCounterService TokenCounter
 @model McpServer
@@ -76,6 +77,12 @@
                             }
                         </p>
                     </div>
+                    @if (!string.IsNullOrWhiteSpace(Model.ToolPrefix)) {
+                        <div class="col-span-12 md:col-span-6">
+                            <label class="text-xs text-base-content/60">Tool Name Prefix</label>
+                            <p class="font-mono text-sm">@McpProxyHelpers.ApplyToolPrefix(Model.ToolPrefix, "<tool>")</p>
+                        </div>
+                    }
                     @if (!string.IsNullOrWhiteSpace(Model.Description)) {
                         <div class="col-span-12">
                             <label class="text-xs text-base-content/60">Description</label>
@@ -358,15 +365,20 @@
                     var effectiveSchema = tool.CustomInputSchema ?? tool.InputSchema;
                     var isCustomized = tool.CustomDescription != null || tool.CustomInputSchema != null;
                     var toolTokens = TokenCounter.CountToolTokens(effectiveDescription, effectiveSchema);
+                    var exposedName = McpProxyHelpers.ApplyToolPrefix(Model.ToolPrefix, tool.Name);
+                    var hasPrefix = !string.IsNullOrWhiteSpace(Model.ToolPrefix);
                     <div class="border border-base-200 rounded-lg p-3">
                         <div class="flex items-start justify-between gap-2 mb-2">
                             <div>
                                 <h4 class="font-medium text-sm">
-                                    @tool.Name
+                                    @exposedName
                                     @if (isCustomized) {
                                         <span class="badge badge-accent badge-xs ml-1">customized</span>
                                     }
                                 </h4>
+                                @if (hasPrefix) {
+                                    <p class="text-xs text-base-content/50">upstream tool: <span class="font-mono">@tool.Name</span></p>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(effectiveDescription)) {
                                     <p class="text-xs text-base-content/60">@effectiveDescription</p>
                                 }

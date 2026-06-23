@@ -10,6 +10,17 @@ public static class McpProxyHelpers
     private const string EmptyObjectSchema = """{"type":"object"}""";
 
     /// <summary>
+    /// Prepend a server's tool-name prefix to a tool name when exposing it through the
+    /// proxy, joined with a single underscore (e.g. prefix <c>github_prod</c> →
+    /// <c>github_prod_create_issue</c>). Any trailing underscores the operator typed are
+    /// trimmed so the separator is never doubled. Lets multiple instances of the same
+    /// upstream server coexist without colliding, and groups tools under a common prefix.
+    /// Returns the name unchanged when no prefix is configured.
+    /// </summary>
+    public static string ApplyToolPrefix(string prefix, string name) =>
+        string.IsNullOrEmpty(prefix) ? name : $"{prefix.TrimEnd('_')}_{name}";
+
+    /// <summary>
     /// Parse a stored JSON schema string into a JsonElement, sanitizing it
     /// for JSON Schema draft 2020-12 compliance required by Claude's API.
     /// </summary>

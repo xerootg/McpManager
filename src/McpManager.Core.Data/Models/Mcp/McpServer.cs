@@ -18,6 +18,13 @@ public class McpServer : IActivable
     [MaxLength(1000)]
     public string Description { get; set; }
 
+    /// <summary>Optional prefix prepended (verbatim) to this server's tool names when
+    /// they are exposed through the proxy. Lets multiple instances of the same upstream
+    /// server coexist without tool-name collisions, and groups tools under a common
+    /// prefix. Does not change the tool name used when calling the upstream server.</summary>
+    [MaxLength(100)]
+    public string ToolPrefix { get; set; }
+
     // Transport
     public McpTransportType TransportType { get; set; } = McpTransportType.Http;
 

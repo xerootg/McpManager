@@ -75,6 +75,24 @@ public class McpProxyHelpersTests
         result.GetProperty("items").GetProperty("type").GetString().Should().Be("string");
     }
 
+    [Theory]
+    [InlineData(null, "echo", "echo")] // no prefix -> unchanged
+    [InlineData("", "echo", "echo")] // empty prefix -> unchanged
+    [InlineData("grp", "echo", "grp_echo")] // joined with a single underscore
+    [InlineData("grp_", "echo", "grp_echo")] // trailing underscore not doubled
+    public void ApplyToolPrefix_JoinsWithUnderscoreOrLeavesUnchanged(
+        string prefix,
+        string name,
+        string expected
+    )
+    {
+        // The exposed tool name is the prefix joined to the tool name with a single
+        // underscore. A regression that drops the prefix, doubles the separator, or
+        // omits it would break call routing since the proxy resolves the prefixed
+        // name back to its server.
+        McpProxyHelpers.ApplyToolPrefix(prefix, name).Should().Be(expected);
+    }
+
     [Fact]
     public void ConvertArguments_FalseAndNullValues_MapToBoolFalseAndNull()
     {

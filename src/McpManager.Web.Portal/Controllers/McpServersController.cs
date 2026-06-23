@@ -541,6 +541,7 @@ public class McpServersController : BaseController
     {
         server.Name = dto.Name;
         server.Description = dto.Description;
+        server.ToolPrefix = dto.ToolPrefix;
         server.TransportType = dto.TransportType.Value;
         server.Uri = dto.Uri;
         server.Auth.Type = dto.Auth.Type;
@@ -596,6 +597,7 @@ public class McpServersController : BaseController
         {
             Name = server.Name,
             Description = server.Description,
+            ToolPrefix = server.ToolPrefix,
             TransportType = server.TransportType,
             Uri = server.Uri,
             Auth = new AuthDto

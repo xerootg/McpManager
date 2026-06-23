@@ -93,6 +93,12 @@
                             </fieldset>
                         </div>
                         <form-field asp-for="Description" class="col-span-12" />
+                        <form-field asp-for="ToolPrefix" class="col-span-12 md:col-span-6" placeholder="e.g. github_prod" />
+                        <div class="col-span-12 md:col-span-6 flex items-end pb-1">
+                            <p class="text-xs text-base-content/60">
+                                Joined to this server's tool names with an underscore when proxied (e.g. <code>github_prod</code> &rarr; <code>github_prod_create_issue</code>). Lets you run multiple instances of the same server, or group tools under a common prefix.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

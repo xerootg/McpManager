@@ -16,6 +16,10 @@ public class McpServerDto : IHasAuth, IHasCustomHeaders
     [Display(Name = "Description")]
     public string Description { get; set; }
 
+    [MaxLength(100, ErrorMessage = "Tool prefix cannot exceed 100 characters")]
+    [Display(Name = "Tool Name Prefix")]
+    public string ToolPrefix { get; set; }
+
     [Required(ErrorMessage = "Transport Type is required")]
     [Display(Name = "Transport Type")]
     public McpTransportType? TransportType { get; set; }

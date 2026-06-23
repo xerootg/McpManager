@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Self-service email address change for the signed-in user, via a new **Change Email** entry in the account menu (alongside Change Password). The new address must be unique; the username is kept in sync with it.
 - `Oidc__RequireSso` option to make SSO the only way into the portal: when enabled the email/password login form is removed and password sign-in is refused server-side. Agent API keys authenticate on a separate scheme and keep working.
 - `Oidc__RequireVerifiedEmail` option (default off) to only match an SSO identity when the provider asserts `email_verified=true`, for untrusted/multi-tenant providers.
+- Optional **tool name prefix** per MCP server (Server Details → *Tool Name Prefix*). The prefix is joined to that server's tool names with an underscore when exposed through the proxy (global and namespace endpoints) — e.g. prefix `github_prod` surfaces `create_issue` as `github_prod_create_issue`. This lets you run multiple instances of the same server with parallel configurations without tool-name collisions, or group a server's tools under a common prefix. The upstream server is still called with the original (unprefixed) tool name.
 
 ### Changed
 

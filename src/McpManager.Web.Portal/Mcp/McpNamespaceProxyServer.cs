@@ -65,7 +65,10 @@ public class McpNamespaceProxyServer
         var tools = nsTools
             .Select(nst => new Tool
             {
-                Name = nst.NameOverride ?? nst.McpTool.Name,
+                Name = McpProxyHelpers.ApplyToolPrefix(
+                    nst.McpNamespaceServer.McpServer.ToolPrefix,
+                    nst.NameOverride ?? nst.McpTool.Name
+                ),
                 Description =
                     nst.DescriptionOverride
                     ?? nst.McpTool.CustomDescription
@@ -100,8 +103,15 @@ public class McpNamespaceProxyServer
 
         var nsTools = await GetEnabledNamespaceTools(ns, cancellationToken);
 
-        // Find tool by effective name (override name or original name)
-        var nsTool = nsTools.FirstOrDefault(t => (t.NameOverride ?? t.McpTool.Name) == toolName);
+        // Find tool by effective exposed name: the server's prefix applied to the
+        // override name (or original name). The upstream is still called with the
+        // tool's original name below.
+        var nsTool = nsTools.FirstOrDefault(t =>
+            McpProxyHelpers.ApplyToolPrefix(
+                t.McpNamespaceServer.McpServer.ToolPrefix,
+                t.NameOverride ?? t.McpTool.Name
+            ) == toolName
+        );
 
         if (nsTool == null)
         {
@@ -175,6 +185,9 @@ public class McpNamespaceProxyServer
     {
         return await _namespaceToolRepository
             .GetAll()
+            .Include(t => t.McpTool)
+            .Include(t => t.McpNamespaceServer)
+            .ThenInclude(s => s.McpServer)
             .Where(t =>
                 t.McpNamespaceServer.McpNamespaceId == ns.Id
                 && t.McpNamespaceServer.IsActive
