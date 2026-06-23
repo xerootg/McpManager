@@ -160,29 +160,27 @@ public class OidcEnabledAuthControllerTests : IClassFixture<OidcWebFactoryFixtur
     }
 
     [Fact]
-    public async Task Callback_WithUnverifiedEmail_RedirectsToLoginWithError()
+    public async Task Callback_WithUnverifiedEmailAndDefaultConfig_SignsIn()
     {
         var client = _factory.CreateClient(NoRedirect());
         var ct = TestContext.Current.CancellationToken;
 
-        // The email matches the seeded admin, but the provider reports it as unverified —
-        // matching must be refused so an unverified provider email cannot take over a
-        // local account.
-        await client.GetAsync(
+        // RequireVerifiedEmail is off by default, so even an explicit email_verified=false
+        // (as Authentik emits for accounts with no verification flow) must still match and
+        // sign in — otherwise legitimate users are locked out.
+        var planted = await client.GetAsync(
             $"{ExternalSignInTestStartupFilter.Path}?email=admin@mcpmanager.local&emailVerified=false",
             ct
         );
+        planted.EnsureSuccessStatusCode();
 
         var callback = await client.GetAsync("/Auth/ExternalLoginCallback", ct);
 
         callback.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        callback.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
-        callback.Headers.Location!.ToString().Should().Contain("error");
+        callback.Headers.Location!.ToString().Should().ContainEquivalentOf("/home");
 
-        // The unverified identity must not have been signed in.
         var protectedPage = await client.GetAsync("/Home", ct);
-        protectedPage.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        protectedPage.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
+        protectedPage.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -364,5 +362,71 @@ public class OidcRequireSsoAuthControllerTests : IClassFixture<OidcRequireSsoWeb
         var protectedPage = await client.GetAsync("/Home", ct);
         protectedPage.StatusCode.Should().Be(HttpStatusCode.Redirect);
         protectedPage.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
+    }
+}
+
+/// <summary>
+/// Strict mode (<c>Oidc__RequireVerifiedEmail=true</c>): an SSO identity is only matched
+/// when the provider asserts <c>email_verified=true</c>. An absent or explicitly-false
+/// claim is rejected. For untrusted/multi-tenant providers where an unverified email
+/// could be used to match an existing local account.
+/// </summary>
+public class OidcRequireVerifiedEmailAuthControllerTests
+    : IClassFixture<OidcRequireVerifiedEmailWebFactoryFixture>
+{
+    private readonly OidcRequireVerifiedEmailWebFactoryFixture _factory;
+
+    public OidcRequireVerifiedEmailAuthControllerTests(
+        OidcRequireVerifiedEmailWebFactoryFixture factory
+    ) => _factory = factory;
+
+    private static WebApplicationFactoryClientOptions NoRedirect() =>
+        new() { AllowAutoRedirect = false, HandleCookies = true };
+
+    [Theory]
+    [InlineData("false")]
+    [InlineData("absent")]
+    public async Task Callback_WhenStrictAndEmailNotVerified_RedirectsToLoginWithError(
+        string emailVerified
+    )
+    {
+        var client = _factory.CreateClient(NoRedirect());
+        var ct = TestContext.Current.CancellationToken;
+
+        await client.GetAsync(
+            $"{ExternalSignInTestStartupFilter.Path}?email=admin@mcpmanager.local&emailVerified={emailVerified}",
+            ct
+        );
+
+        var callback = await client.GetAsync("/Auth/ExternalLoginCallback", ct);
+
+        callback.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callback.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
+        callback.Headers.Location!.ToString().Should().Contain("error");
+
+        var protectedPage = await client.GetAsync("/Home", ct);
+        protectedPage.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        protectedPage.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
+    }
+
+    [Fact]
+    public async Task Callback_WhenStrictAndEmailVerified_SignsIn()
+    {
+        var client = _factory.CreateClient(NoRedirect());
+        var ct = TestContext.Current.CancellationToken;
+
+        var planted = await client.GetAsync(
+            $"{ExternalSignInTestStartupFilter.Path}?email=admin@mcpmanager.local&emailVerified=true",
+            ct
+        );
+        planted.EnsureSuccessStatusCode();
+
+        var callback = await client.GetAsync("/Auth/ExternalLoginCallback", ct);
+
+        callback.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callback.Headers.Location!.ToString().Should().ContainEquivalentOf("/home");
+
+        var protectedPage = await client.GetAsync("/Home", ct);
+        protectedPage.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

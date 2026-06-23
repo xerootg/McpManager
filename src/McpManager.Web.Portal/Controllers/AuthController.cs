@@ -142,23 +142,28 @@ public class AuthController : BaseController
             );
         }
 
-        // If the provider explicitly reports the email as unverified, refuse to match it
-        // to a local account — that is the account-takeover vector from the security
-        // review. Many providers (e.g. Authentik) omit email_verified entirely; an absent
-        // claim is treated as "not asserted" and we fall back to trusting the configured
-        // provider's email rather than locking users out. JSON booleans surface as
-        // "false"/"False" depending on the claim source, so compare case-insensitively.
-        var emailVerified = info.Principal.FindFirstValue("email_verified");
-        if (string.Equals(emailVerified, "false", StringComparison.OrdinalIgnoreCase))
+        // Optionally require a provider-verified email before matching to a local account
+        // (the account-takeover vector from the security review). Off by default: some
+        // providers — e.g. Authentik without an email-verification flow — report
+        // email_verified=false (or omit it) for perfectly legitimate accounts, so gating
+        // on it locks real users out. Enable Oidc__RequireVerifiedEmail only for providers
+        // where an unverified email could let an attacker match an existing local account.
+        // JSON booleans surface as "true"/"True" depending on the claim source, so compare
+        // case-insensitively; absent or anything other than true is treated as unverified.
+        if (_oidcOptions.RequireVerifiedEmail)
         {
-            _logger.LogWarning(
-                "SSO sign-in for {Email} rejected: the provider reported the email as unverified.",
-                email
-            );
-            return RedirectToAction(
-                nameof(Login),
-                new { error = "Your SSO email address is reported as unverified by the provider." }
-            );
+            var emailVerified = info.Principal.FindFirstValue("email_verified");
+            if (!string.Equals(emailVerified, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "SSO sign-in for {Email} rejected: Oidc__RequireVerifiedEmail is set and the provider did not assert email_verified=true.",
+                    email
+                );
+                return RedirectToAction(
+                    nameof(Login),
+                    new { error = "Your SSO email address has not been verified by the provider." }
+                );
+            }
         }
 
         var user = await _userManager.FindByEmailAsync(email);

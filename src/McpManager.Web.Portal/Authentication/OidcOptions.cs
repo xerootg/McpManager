@@ -45,6 +45,14 @@ public class OidcOptions
     /// cannot lock everyone out of the portal.</summary>
     public bool RequireSso { get; set; }
 
+    /// <summary>When true, an SSO identity is only matched to a local account if the
+    /// provider asserts <c>email_verified=true</c>. Off by default: some providers (e.g.
+    /// Authentik without an email-verification flow) report <c>email_verified=false</c>
+    /// — or omit the claim — for legitimate accounts, so gating on it locks real users
+    /// out. Enable only for providers where an unverified email could let an attacker
+    /// match an existing local account (e.g. multi-tenant IdPs with open sign-up).</summary>
+    public bool RequireVerifiedEmail { get; set; }
+
     /// <summary>True when the minimum required values for the authorization-code flow
     /// are present, in which case the OIDC handler is registered.</summary>
     public bool IsConfigured =>

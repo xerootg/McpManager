@@ -27,6 +27,9 @@ public class OidcWebFactoryFixture
     /// <summary>Whether the configured app should require SSO and disable password login.</summary>
     protected virtual bool RequireSso => false;
 
+    /// <summary>Whether the configured app should require a provider-verified email.</summary>
+    protected virtual bool RequireVerifiedEmail => false;
+
     public ValueTask InitializeAsync()
     {
         _dbPath = Path.Combine(Path.GetTempPath(), $"mcpmanager-oidc-tests-{Guid.NewGuid():N}.db");
@@ -64,6 +67,7 @@ public class OidcWebFactoryFixture
         builder.UseSetting("Oidc:RequireHttpsMetadata", "false");
         builder.UseSetting("Oidc:AutoProvision", AutoProvision ? "true" : "false");
         builder.UseSetting("Oidc:RequireSso", RequireSso ? "true" : "false");
+        builder.UseSetting("Oidc:RequireVerifiedEmail", RequireVerifiedEmail ? "true" : "false");
 
         builder.ConfigureServices(services =>
         {
@@ -83,4 +87,10 @@ public class OidcAutoProvisionWebFactoryFixture : OidcWebFactoryFixture
 public class OidcRequireSsoWebFactoryFixture : OidcWebFactoryFixture
 {
     protected override bool RequireSso => true;
+}
+
+/// <summary>OIDC web factory variant that requires a provider-verified email.</summary>
+public class OidcRequireVerifiedEmailWebFactoryFixture : OidcWebFactoryFixture
+{
+    protected override bool RequireVerifiedEmail => true;
 }
