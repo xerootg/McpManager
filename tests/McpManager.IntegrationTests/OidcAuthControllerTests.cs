@@ -1,4 +1,5 @@
 using System.Net;
+using AngleSharp;
 using AwesomeAssertions;
 using McpManager.Core.Data.Models.Identity;
 using McpManager.IntegrationTests.Fixtures;
@@ -159,6 +160,32 @@ public class OidcEnabledAuthControllerTests : IClassFixture<OidcWebFactoryFixtur
     }
 
     [Fact]
+    public async Task Callback_WithUnverifiedEmail_RedirectsToLoginWithError()
+    {
+        var client = _factory.CreateClient(NoRedirect());
+        var ct = TestContext.Current.CancellationToken;
+
+        // The email matches the seeded admin, but the provider reports it as unverified —
+        // matching must be refused so an unverified provider email cannot take over a
+        // local account.
+        await client.GetAsync(
+            $"{ExternalSignInTestStartupFilter.Path}?email=admin@mcpmanager.local&emailVerified=false",
+            ct
+        );
+
+        var callback = await client.GetAsync("/Auth/ExternalLoginCallback", ct);
+
+        callback.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callback.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
+        callback.Headers.Location!.ToString().Should().Contain("error");
+
+        // The unverified identity must not have been signed in.
+        var protectedPage = await client.GetAsync("/Home", ct);
+        protectedPage.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        protectedPage.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
+    }
+
+    [Fact]
     public async Task Callback_WithNoEmailClaim_RedirectsToLoginWithError()
     {
         var client = _factory.CreateClient(NoRedirect());
@@ -234,5 +261,85 @@ public class OidcAutoProvisionAuthControllerTests : IClassFixture<OidcAutoProvis
 
         var protectedPage = await client.GetAsync("/Home", ct);
         protectedPage.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+}
+
+/// <summary>
+/// SSO-only mode (<c>Oidc__RequireSso=true</c>): the email/password form is removed from
+/// the login page and password sign-in is refused server-side, while SSO remains
+/// available. Agent API key authentication is on a separate scheme and is unaffected.
+/// </summary>
+public class OidcRequireSsoAuthControllerTests : IClassFixture<OidcRequireSsoWebFactoryFixture>
+{
+    private readonly OidcRequireSsoWebFactoryFixture _factory;
+
+    public OidcRequireSsoAuthControllerTests(OidcRequireSsoWebFactoryFixture factory) =>
+        _factory = factory;
+
+    [Fact]
+    public async Task LoginPage_WhenRequireSso_HidesPasswordFormAndShowsSso()
+    {
+        var client = _factory.CreateClient();
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync("/Auth/Login", ct);
+        response.EnsureSuccessStatusCode();
+        var html = await response.Content.ReadAsStringAsync(ct);
+
+        var document = await BrowsingContext
+            .New(Configuration.Default)
+            .OpenAsync(req => req.Content(html), ct);
+
+        // The password form and its fields must not render in SSO-only mode.
+        document.QuerySelector("form#loginForm").Should().BeNull();
+        document.QuerySelector("input[name='Password']").Should().BeNull();
+
+        // The SSO button is still offered.
+        html.Should().Contain($"Sign in with {OidcWebFactoryFixture.DisplayName}");
+        html.Should().Contain("/auth/externallogin");
+    }
+
+    [Fact]
+    public async Task PasswordLogin_WhenRequireSso_IsRefusedAndDoesNotSignIn()
+    {
+        var client = _factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false,
+                HandleCookies = true,
+            }
+        );
+        var ct = TestContext.Current.CancellationToken;
+
+        // The SSO-only login page still emits an antiforgery token, so a same-origin POST
+        // reaches the controller guard rather than being stopped only by antiforgery.
+        var getResponse = await client.GetAsync("/Auth/Login", ct);
+        getResponse.EnsureSuccessStatusCode();
+        var html = await getResponse.Content.ReadAsStringAsync(ct);
+        var document = await BrowsingContext
+            .New(Configuration.Default)
+            .OpenAsync(req => req.Content(html), ct);
+        var token = document
+            .QuerySelector("input[name='AntiForgery']")!
+            .GetAttribute("value")!;
+
+        var form = new FormUrlEncodedContent(
+            new Dictionary<string, string>
+            {
+                ["AntiForgery"] = token,
+                ["Email"] = "admin@mcpmanager.local",
+                ["Password"] = "123456",
+            }
+        );
+
+        var post = await client.PostAsync("/Auth/Login", form, ct);
+
+        // The guard re-renders the login page (200) rather than signing in / redirecting home.
+        post.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // The session is not authenticated: a protected page bounces back to login.
+        var protectedPage = await client.GetAsync("/Home", ct);
+        protectedPage.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        protectedPage.Headers.Location!.ToString().Should().ContainEquivalentOf("/auth/login");
     }
 }

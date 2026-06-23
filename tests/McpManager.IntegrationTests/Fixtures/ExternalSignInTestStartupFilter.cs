@@ -34,6 +34,7 @@ public class ExternalSignInTestStartupFilter : IStartupFilter
                     }
 
                     var email = context.Request.Query["email"].ToString();
+                    var emailVerifiedParam = context.Request.Query["emailVerified"].ToString();
                     var claims = new List<Claim>
                     {
                         new(ClaimTypes.NameIdentifier, "test-provider-key"),
@@ -41,6 +42,13 @@ public class ExternalSignInTestStartupFilter : IStartupFilter
                     if (!string.IsNullOrEmpty(email))
                     {
                         claims.Add(new Claim(ClaimTypes.Email, email));
+                        // Mirror the provider's email_verified claim. Default to verified
+                        // so existing matching tests exercise the happy path; pass
+                        // emailVerified=false to simulate an unverified provider email.
+                        var emailVerified = string.IsNullOrEmpty(emailVerifiedParam)
+                            ? "true"
+                            : emailVerifiedParam;
+                        claims.Add(new Claim("email_verified", emailVerified));
                     }
 
                     var identity = new ClaimsIdentity(claims, IdentityConstants.ExternalScheme);

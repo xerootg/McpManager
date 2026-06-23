@@ -39,10 +39,20 @@ public class OidcOptions
     /// production; only disable for local providers served over plain HTTP.</summary>
     public bool RequireHttpsMetadata { get; set; } = true;
 
+    /// <summary>When true (and SSO is configured), the email/password login form is
+    /// disabled and interactive users must sign in via SSO. API key authentication for
+    /// agents is unaffected. Ignored when SSO is not configured, so a misconfiguration
+    /// cannot lock everyone out of the portal.</summary>
+    public bool RequireSso { get; set; }
+
     /// <summary>True when the minimum required values for the authorization-code flow
     /// are present, in which case the OIDC handler is registered.</summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Authority)
         && !string.IsNullOrWhiteSpace(ClientId)
         && !string.IsNullOrWhiteSpace(ClientSecret);
+
+    /// <summary>True when interactive password sign-in should be refused. Only takes
+    /// effect once SSO is actually configured.</summary>
+    public bool PasswordLoginDisabled => IsConfigured && RequireSso;
 }

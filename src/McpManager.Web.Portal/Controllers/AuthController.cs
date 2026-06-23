@@ -39,6 +39,7 @@ public class AuthController : BaseController
         ViewData["Error"] = error;
         ViewData["OidcEnabled"] = _oidcOptions.IsConfigured;
         ViewData["OidcDisplayName"] = _oidcOptions.DisplayName;
+        ViewData["PasswordLoginDisabled"] = _oidcOptions.PasswordLoginDisabled;
         return View();
     }
 
@@ -48,6 +49,16 @@ public class AuthController : BaseController
     {
         ViewData["OidcEnabled"] = _oidcOptions.IsConfigured;
         ViewData["OidcDisplayName"] = _oidcOptions.DisplayName;
+        ViewData["PasswordLoginDisabled"] = _oidcOptions.PasswordLoginDisabled;
+
+        // When SSO is required, password sign-in is refused server-side as well so the
+        // policy holds even if a request reaches this endpoint directly. Agent API keys
+        // authenticate on a separate scheme and are unaffected.
+        if (_oidcOptions.PasswordLoginDisabled)
+        {
+            ViewData["InvalidLogin"] = "Password sign-in is disabled. Please sign in with SSO.";
+            return View(new LoginDto());
+        }
 
         if (!ModelState.IsValid)
         {
@@ -115,16 +126,37 @@ public class AuthController : BaseController
             );
         }
 
+        // Match strictly on the email claim. preferred_username is intentionally NOT
+        // used as a fallback: it is frequently user-settable and not guaranteed to be a
+        // verified email, so matching on it would let an attacker target a known local
+        // address (e.g. the admin) by choosing their username at the provider.
         var email =
             info.Principal.FindFirstValue(ClaimTypes.Email)
-            ?? info.Principal.FindFirstValue("email")
-            ?? info.Principal.FindFirstValue("preferred_username");
+            ?? info.Principal.FindFirstValue("email");
 
         if (string.IsNullOrWhiteSpace(email))
         {
             return RedirectToAction(
                 nameof(Login),
                 new { error = "Your SSO account did not provide an email address." }
+            );
+        }
+
+        // Only trust the email for account matching if the provider asserts it is
+        // verified. Without this, a provider that lets users set an arbitrary,
+        // unverified email could be used to match (and take over) an existing local
+        // account. JSON booleans surface as "true"/"True" depending on the claim
+        // source, so compare case-insensitively.
+        var emailVerified = info.Principal.FindFirstValue("email_verified");
+        if (!string.Equals(emailVerified, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(
+                "SSO sign-in for {Email} rejected: the provider did not report the email as verified.",
+                email
+            );
+            return RedirectToAction(
+                nameof(Login),
+                new { error = "Your SSO email address has not been verified by the provider." }
             );
         }
 

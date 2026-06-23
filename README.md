@@ -165,7 +165,9 @@ Generate API keys from the **API Keys** page in the admin panel.
 
 MCP Manager can authenticate users against any OpenID Connect provider (e.g. Authentik, Keycloak, Authelia, Entra ID) in addition to the built-in email/password login. SSO is enabled simply by providing the configuration below as environment variables — when the authority, client ID, and client secret are all present, a **Sign in with …** button appears on the login page.
 
-Users are matched to local accounts **by email address**. By default an SSO login with no matching local account is rejected; set `Oidc__AutoProvision=true` to create accounts on first sign-in instead (new accounts start with no permissions until an admin grants them).
+Users are matched to local accounts **by email address**, and only when the provider reports the email as verified (`email_verified`). By default an SSO login with no matching local account is rejected; set `Oidc__AutoProvision=true` to create accounts on first sign-in instead (new accounts start with no permissions until an admin grants them).
+
+To make SSO the only way into the portal, set `Oidc__RequireSso=true`: the email/password form is removed from the login page and password sign-in is refused. API keys used by agents authenticate on a separate scheme and keep working regardless.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -175,6 +177,7 @@ Users are matched to local accounts **by email address**. By default an SSO logi
 | `Oidc__Scope` | | `openid profile email` | Space-separated scopes (must include `email`) |
 | `Oidc__DisplayName` | | `Single Sign-On` | Label shown on the sign-in button, e.g. `Authentik` |
 | `Oidc__AutoProvision` | | `false` | Create a local account on first SSO login when no email match exists |
+| `Oidc__RequireSso` | | `false` | Disable the email/password login form and require SSO for the portal (agent API keys are unaffected) |
 | `Oidc__CallbackPath` | | `/signin-oidc` | Redirect path; register `{app-origin}/signin-oidc` as a redirect URI on the provider |
 | `Oidc__RequireHttpsMetadata` | | `true` | Require HTTPS for the provider metadata endpoint (only disable for plain-HTTP providers) |
 

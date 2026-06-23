@@ -7,6 +7,7 @@
     var invalidLogin = ViewData["InvalidLogin"] as string;
     var oidcEnabled = ViewData["OidcEnabled"] as bool? ?? false;
     var oidcDisplayName = ViewData["OidcDisplayName"] as string ?? "Single Sign-On";
+    var passwordLoginDisabled = ViewData["PasswordLoginDisabled"] as bool? ?? false;
     var returnUrl = ViewData["ReturnUrl"] as string;
 }
 
@@ -20,34 +21,44 @@
             <p class="text-sm text-error mb-4">@(invalidLogin ?? error)</p>
         }
 
-        <form asp-action="Login" asp-controller="Auth" id="loginForm">
-            <fieldset class="fieldset mb-4">
-                <legend class="fieldset-legend">Email</legend>
-                <input class="auth-input" asp-for="Email" type="email" placeholder="name@example.com" />
-                <span class="text-error text-xs" asp-validation-for="Email"></span>
-            </fieldset>
+        @if (!passwordLoginDisabled) {
+            <form asp-action="Login" asp-controller="Auth" id="loginForm">
+                <fieldset class="fieldset mb-4">
+                    <legend class="fieldset-legend">Email</legend>
+                    <input class="auth-input" asp-for="Email" type="email" placeholder="name@example.com" />
+                    <span class="text-error text-xs" asp-validation-for="Email"></span>
+                </fieldset>
 
-            <fieldset class="fieldset mb-4">
-                <legend class="fieldset-legend">Password</legend>
-                <input class="auth-input" asp-for="Password" />
-                <span class="text-error text-xs" asp-validation-for="Password"></span>
-            </fieldset>
+                <fieldset class="fieldset mb-4">
+                    <legend class="fieldset-legend">Password</legend>
+                    <input class="auth-input" asp-for="Password" />
+                    <span class="text-error text-xs" asp-validation-for="Password"></span>
+                </fieldset>
 
-            <div class="mb-6 flex items-center gap-2">
-                <input type="checkbox" asp-for="RememberMe" class="checkbox checkbox-sm" />
-                <label class="text-sm text-base-content/70" asp-for="RememberMe">Remember me</label>
-            </div>
+                <div class="mb-6 flex items-center gap-2">
+                    <input type="checkbox" asp-for="RememberMe" class="checkbox checkbox-sm" />
+                    <label class="text-sm text-base-content/70" asp-for="RememberMe">Remember me</label>
+                </div>
 
-            <button type="submit" class="auth-btn" id="loginBtn">
-                <span id="loginBtnText">Sign in</span>
-            </button>
-        </form>
+                <button type="submit" class="auth-btn" id="loginBtn">
+                    <span id="loginBtnText">Sign in</span>
+                </button>
+            </form>
+        }
 
         @if (oidcEnabled) {
-            <div class="divider my-6 text-base-content/50">or</div>
+            @if (!passwordLoginDisabled) {
+                <div class="divider my-6 text-base-content/50">or</div>
+            }
             <a class="auth-btn block text-center" asp-action="ExternalLogin" asp-controller="Auth" asp-route-returnUrl="@returnUrl">
                 Sign in with @oidcDisplayName
             </a>
+        }
+
+        @if (passwordLoginDisabled) {
+            @* No password form renders in SSO-only mode, but emit an antiforgery token so
+               the page still establishes the CSRF cookie for any same-origin POST. *@
+            @Html.AntiForgeryToken()
         }
 
         <p class="mt-8 text-center text-xs text-base-content/50">
@@ -59,10 +70,13 @@
 @section Scripts {
 <script>
     // Disable login button and show loading text on form submit
-    document.getElementById('loginForm').addEventListener('submit', function() {
-        var btn = document.getElementById('loginBtn');
-        document.getElementById('loginBtnText').textContent = 'Signing in...';
-        btn.disabled = true;
-    });
+    var loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function() {
+            var btn = document.getElementById('loginBtn');
+            document.getElementById('loginBtnText').textContent = 'Signing in...';
+            btn.disabled = true;
+        });
+    }
 </script>
 }

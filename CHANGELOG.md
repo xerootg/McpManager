@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Optional OpenID Connect (OIDC) single sign-on, configured entirely through `Oidc__*` environment variables (tested with Authentik). When configured, the login page shows a "Sign in with …" button; users are matched to local accounts by email address. Unknown emails are denied by default, or auto-provisioned as new accounts when `Oidc__AutoProvision=true`. Password login remains available alongside SSO.
 - Self-service email address change for the signed-in user, via a new **Change Email** entry in the account menu (alongside Change Password). The new address must be unique; the username is kept in sync with it.
+- `Oidc__RequireSso` option to make SSO the only way into the portal: when enabled the email/password login form is removed and password sign-in is refused server-side. Agent API keys authenticate on a separate scheme and keep working.
 
 ### Changed
 
 ### Fixed
+
+- SSO sign-in now matches a local account only when the provider reports the email as verified (`email_verified`), and no longer falls back to the user-settable `preferred_username` claim as an email. Previously a provider that allowed an arbitrary, unverified email or username could be used to match — and take over — an existing local account, including the seeded admin.
 
 ## [1.1.2] — 2026-05-16
 

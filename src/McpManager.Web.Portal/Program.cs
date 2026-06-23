@@ -19,6 +19,7 @@ using McpManager.Web.Portal.Authorization;
 using McpManager.Web.Portal.Mcp;
 using McpManager.Web.Portal.Services.FlashMessage;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -147,6 +148,10 @@ if (oidcOptions.IsConfigured)
             // Pull email/name from the userinfo endpoint so matching works even when
             // the provider omits them from the id_token.
             options.GetClaimsFromUserInfoEndpoint = true;
+            // Surface email_verified onto the principal so the callback can require a
+            // provider-verified email before matching an SSO identity to a local
+            // account. MapUniqueJsonKey is a no-op when the id_token already carried it.
+            options.ClaimActions.MapUniqueJsonKey("email_verified", "email_verified");
             // Sign in to the temporary external cookie; AuthController completes the
             // login by matching the email to a local account.
             options.SignInScheme = IdentityConstants.ExternalScheme;
