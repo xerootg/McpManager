@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- SSO sign-in now matches a local account only when the provider reports the email as verified (`email_verified`), and no longer falls back to the user-settable `preferred_username` claim as an email. Previously a provider that allowed an arbitrary, unverified email or username could be used to match — and take over — an existing local account, including the seeded admin.
+- SSO sign-in no longer falls back to the user-settable `preferred_username` claim as an email, and refuses to match an email the provider explicitly reports as unverified (`email_verified: false`). Previously a provider that allowed an arbitrary, unverified email or username could be used to match — and take over — an existing local account, including the seeded admin. Providers that omit `email_verified` entirely (e.g. Authentik) are unaffected: an absent claim is trusted rather than rejected.
 
 ## [1.1.2] — 2026-05-16
 

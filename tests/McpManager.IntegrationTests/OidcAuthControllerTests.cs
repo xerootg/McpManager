@@ -186,6 +186,29 @@ public class OidcEnabledAuthControllerTests : IClassFixture<OidcWebFactoryFixtur
     }
 
     [Fact]
+    public async Task Callback_WithMatchingEmailAndNoVerifiedClaim_SignsIn()
+    {
+        var client = _factory.CreateClient(NoRedirect());
+        var ct = TestContext.Current.CancellationToken;
+
+        // Many providers (e.g. Authentik) never emit email_verified. An absent claim must
+        // NOT block sign-in — otherwise every such provider's users are locked out.
+        var planted = await client.GetAsync(
+            $"{ExternalSignInTestStartupFilter.Path}?email=admin@mcpmanager.local&emailVerified=absent",
+            ct
+        );
+        planted.EnsureSuccessStatusCode();
+
+        var callback = await client.GetAsync("/Auth/ExternalLoginCallback", ct);
+
+        callback.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callback.Headers.Location!.ToString().Should().ContainEquivalentOf("/home");
+
+        var protectedPage = await client.GetAsync("/Home", ct);
+        protectedPage.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task Callback_WithNoEmailClaim_RedirectsToLoginWithError()
     {
         var client = _factory.CreateClient(NoRedirect());

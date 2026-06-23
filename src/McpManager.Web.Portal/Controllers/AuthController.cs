@@ -142,21 +142,22 @@ public class AuthController : BaseController
             );
         }
 
-        // Only trust the email for account matching if the provider asserts it is
-        // verified. Without this, a provider that lets users set an arbitrary,
-        // unverified email could be used to match (and take over) an existing local
-        // account. JSON booleans surface as "true"/"True" depending on the claim
-        // source, so compare case-insensitively.
+        // If the provider explicitly reports the email as unverified, refuse to match it
+        // to a local account — that is the account-takeover vector from the security
+        // review. Many providers (e.g. Authentik) omit email_verified entirely; an absent
+        // claim is treated as "not asserted" and we fall back to trusting the configured
+        // provider's email rather than locking users out. JSON booleans surface as
+        // "false"/"False" depending on the claim source, so compare case-insensitively.
         var emailVerified = info.Principal.FindFirstValue("email_verified");
-        if (!string.Equals(emailVerified, "true", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(emailVerified, "false", StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning(
-                "SSO sign-in for {Email} rejected: the provider did not report the email as verified.",
+                "SSO sign-in for {Email} rejected: the provider reported the email as unverified.",
                 email
             );
             return RedirectToAction(
                 nameof(Login),
-                new { error = "Your SSO email address has not been verified by the provider." }
+                new { error = "Your SSO email address is reported as unverified by the provider." }
             );
         }
 

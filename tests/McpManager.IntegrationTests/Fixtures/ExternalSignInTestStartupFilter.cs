@@ -44,11 +44,16 @@ public class ExternalSignInTestStartupFilter : IStartupFilter
                         claims.Add(new Claim(ClaimTypes.Email, email));
                         // Mirror the provider's email_verified claim. Default to verified
                         // so existing matching tests exercise the happy path; pass
-                        // emailVerified=false to simulate an unverified provider email.
-                        var emailVerified = string.IsNullOrEmpty(emailVerifiedParam)
-                            ? "true"
-                            : emailVerifiedParam;
-                        claims.Add(new Claim("email_verified", emailVerified));
+                        // emailVerified=false to simulate an explicitly-unverified email,
+                        // or emailVerified=absent to omit the claim entirely (e.g.
+                        // Authentik, which does not emit it).
+                        if (!string.Equals(emailVerifiedParam, "absent", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var emailVerified = string.IsNullOrEmpty(emailVerifiedParam)
+                                ? "true"
+                                : emailVerifiedParam;
+                            claims.Add(new Claim("email_verified", emailVerified));
+                        }
                     }
 
                     var identity = new ClaimsIdentity(claims, IdentityConstants.ExternalScheme);
