@@ -175,7 +175,10 @@ public class McpNamespaceProxyServer
         if (string.IsNullOrEmpty(slug))
             return null;
 
-        return await _namespaceRepository.GetBySlug(slug).FirstOrDefaultAsync();
+        return await _namespaceRepository
+            .GetBySlug(slug)
+            .Where(n => n.IsActive)
+            .FirstOrDefaultAsync();
     }
 
     private async Task<List<McpNamespaceTool>> GetEnabledNamespaceTools(

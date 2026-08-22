@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Equibles.Core.AutoWiring;
 using McpManager.Core.Data.Models.ApiKeys;
+using McpManager.Core.Data.Models.Mcp;
 using McpManager.Core.Repositories;
 using McpManager.Core.Repositories.ApiKeys;
 using McpManager.Core.Repositories.Identity;
@@ -54,6 +55,20 @@ public class ApiKeyManager
         apiKey.Name = name;
         await _apiKeyRepository.SaveChanges();
         _logger.LogInformation("Renamed API key {ApiKeyId} to {ApiKeyName}", apiKey.Id, name);
+    }
+
+    public async Task SetAllowedNamespaces(ApiKey apiKey, List<McpNamespace> namespaces)
+    {
+        ArgumentNullException.ThrowIfNull(apiKey);
+        ArgumentNullException.ThrowIfNull(namespaces);
+        apiKey.AllowedNamespaces.Clear();
+        apiKey.AllowedNamespaces.AddRange(namespaces);
+        await _apiKeyRepository.SaveChanges();
+        _logger.LogInformation(
+            "Scoped API key {ApiKeyName} to {NamespaceCount} namespace(s)",
+            apiKey.Name,
+            namespaces.Count
+        );
     }
 
     public async Task ToggleActive(ApiKey apiKey)

@@ -8,9 +8,9 @@
 @section PageActions {
     <a class="btn btn-ghost gap-2 show-ajax-form-modal"
        data-url="@Url.Action("Edit", new { id = Model.Id })"
-       data-title="Rename API Key">
+       data-title="Edit API Key">
         <icon name="pencil-square" size="5" />
-        <span class="hidden sm:inline">Rename</span>
+        <span class="hidden sm:inline">Edit</span>
     </a>
     <form asp-action="ToggleActive" asp-route-id="@Model.Id" class="form-confirm inline"
           data-message="@(Model.IsActive ? "Deactivate" : "Activate") this API key?">
@@ -82,6 +82,19 @@
                         <label class="text-xs text-base-content/60">Created</label>
                         <p class="text-sm">@Model.CreationTime.ToString("g")</p>
                     </div>
+                    <div class="col-span-12">
+                        <label class="text-xs text-base-content/60">Namespace Scope</label>
+                        @if (Model.AllowedNamespaces.Count == 0) {
+                            <p class="text-sm">Unscoped &mdash; full access to all servers via <code>/mcp</code> and every namespace endpoint.</p>
+                        } else {
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                @foreach (var ns in Model.AllowedNamespaces.OrderBy(n => n.Name)) {
+                                    <a asp-controller="McpNamespaces" asp-action="Show" asp-route-id="@ns.Id"
+                                       class="badge badge-primary badge-outline">@ns.Name</a>
+                                }
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
@@ -94,6 +107,16 @@
                 <div class="text-sm text-base-content/70 mt-2">
                     <p class="mb-2">Use this key in the <code>Authorization</code> header:</p>
                     <pre class="bg-base-200 rounded p-2 text-xs overflow-x-auto"><code id="api-key-usage">Authorization: Bearer @(Model.Key.Substring(0, 10))...</code></pre>
+                    @if (Model.AllowedNamespaces.Count == 0) {
+                        <p class="mt-2">Endpoint: <code>/mcp</code> or any namespace endpoint.</p>
+                    } else {
+                        <p class="mt-2 mb-1">This key only works on its namespace endpoint@(Model.AllowedNamespaces.Count > 1 ? "s" : ""):</p>
+                        <ul class="space-y-1">
+                            @foreach (var ns in Model.AllowedNamespaces.OrderBy(n => n.Name)) {
+                                <li><code class="text-xs">/mcp/ns/@ns.Slug</code></li>
+                            }
+                        </ul>
+                    }
                 </div>
             </div>
         </div>

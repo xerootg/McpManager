@@ -1,4 +1,9 @@
+@using McpManager.Core.Data.Models.Mcp
 @model McpManager.Web.Portal.Dtos.ApiKeys.ApiKeyDto
+
+@{
+    var namespaces = ViewData["Namespaces"] as List<McpNamespace> ?? [];
+}
 
 <form asp-action="Edit">
     <fieldset class="fieldset">
@@ -6,5 +11,24 @@
         <input class="input w-full" asp-for="Name" />
         <span asp-validation-for="Name" class="text-error text-sm"></span>
     </fieldset>
+    @if (namespaces.Count > 0) {
+        <fieldset class="fieldset">
+            <legend class="fieldset-legend">Namespace Scope</legend>
+            <p class="text-xs text-base-content/60 mb-1">
+                Leave all unchecked for full access. Checking namespaces restricts this key to those endpoints only.
+            </p>
+            <div class="space-y-1">
+                @foreach (var ns in namespaces) {
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="AllowedNamespaceIds" value="@ns.Id"
+                               class="checkbox checkbox-sm checkbox-primary"
+                               checked="@Model.AllowedNamespaceIds.Contains(ns.Id)" />
+                        <span class="text-sm">@ns.Name</span>
+                        <code class="text-xs text-base-content/60">/mcp/ns/@ns.Slug</code>
+                    </label>
+                }
+            </div>
+        </fieldset>
+    }
     <partial name="Form/_ActionButtons" />
 </form>

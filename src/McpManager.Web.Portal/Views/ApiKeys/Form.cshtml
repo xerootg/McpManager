@@ -1,5 +1,10 @@
+@using McpManager.Core.Data.Models.Mcp
 @using McpManager.Web.Portal.Dtos.ApiKeys
 @model ApiKeyDto
+
+@{
+    var namespaces = ViewData["Namespaces"] as List<McpNamespace> ?? [];
+}
 
 @section PageActions {
     <partial name="_HelpButton" />
@@ -20,6 +25,34 @@
                     <div class="grid grid-cols-12 gap-3">
                         <form-field asp-for="Name" class="col-span-12" placeholder="e.g. Production, Development" />
                     </div>
+                </div>
+            </div>
+
+            <div class="card bg-base-100 border border-base-200 mb-4">
+                <div class="card-body p-4">
+                    <h3 class="fieldset-legend">Namespace Scope</h3>
+                    @if (namespaces.Count == 0) {
+                        <p class="text-sm text-base-content/70">
+                            No namespaces exist yet. Unscoped keys can access every server via <code>/mcp</code>.
+                            Create a <a asp-controller="McpNamespaces" asp-action="Create" class="link">namespace</a> to scope keys to a subset of servers.
+                        </p>
+                    } else {
+                        <p class="text-sm text-base-content/70 mb-2">
+                            Leave all unchecked for an unscoped key (full access, including the global <code>/mcp</code> endpoint).
+                            Checking one or more namespaces restricts this key to those namespace endpoints only.
+                        </p>
+                        <div class="space-y-1">
+                            @foreach (var ns in namespaces) {
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" name="AllowedNamespaceIds" value="@ns.Id"
+                                           class="checkbox checkbox-sm checkbox-primary"
+                                           checked="@Model.AllowedNamespaceIds.Contains(ns.Id)" />
+                                    <span class="text-sm">@ns.Name</span>
+                                    <code class="text-xs text-base-content/60">/mcp/ns/@ns.Slug</code>
+                                </label>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -44,6 +77,10 @@
         <div>
             <h3 class="font-semibold text-sm mb-1">Create API Key</h3>
             <p class="text-base-content/70">Give your key a descriptive name (e.g. "Production", "Development") so you can identify it later.</p>
+        </div>
+        <div>
+            <h3 class="font-semibold text-sm mb-1">Namespace Scope</h3>
+            <p class="text-base-content/70">Scoped keys only work on their namespace endpoints (<code>/mcp/ns/&lt;slug&gt;</code>) and cannot use the global <code>/mcp</code> endpoint. Unscoped keys can access everything.</p>
         </div>
         <div>
             <h3 class="font-semibold text-sm mb-1">Important</h3>

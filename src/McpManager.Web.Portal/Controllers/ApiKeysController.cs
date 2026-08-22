@@ -1,4 +1,5 @@
 using McpManager.Core.Data.Models.ApiKeys;
+using McpManager.Core.Data.Models.Mcp;
 using McpManager.Core.Mcp;
 using McpManager.Core.Repositories;
 using McpManager.Core.Repositories.ApiKeys;
@@ -12,6 +13,7 @@ using McpManager.Web.Portal.Services.FlashMessage.Contracts;
 using McpManager.Web.Portal.TagHelpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace McpManager.Web.Portal.Controllers;
 
@@ -20,17 +22,38 @@ public class ApiKeysController : BaseController
 {
     private readonly ApiKeyRepository _apiKeyRepository;
     private readonly ApiKeyManager _apiKeyManager;
+    private readonly McpNamespaceRepository _namespaceRepository;
     private readonly IFlashMessage _flashMessage;
 
     public ApiKeysController(
         ApiKeyRepository apiKeyRepository,
         ApiKeyManager apiKeyManager,
+        McpNamespaceRepository namespaceRepository,
         IFlashMessage flashMessage
     )
     {
         _apiKeyRepository = apiKeyRepository;
         _apiKeyManager = apiKeyManager;
+        _namespaceRepository = namespaceRepository;
         _flashMessage = flashMessage;
+    }
+
+    private async Task LoadNamespacesViewData()
+    {
+        ViewData["Namespaces"] = await _namespaceRepository
+            .GetAll()
+            .OrderBy(n => n.Name)
+            .ToListAsync();
+    }
+
+    private async Task<List<McpNamespace>> ResolveNamespaces(List<Guid> ids)
+    {
+        if (ids == null || ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _namespaceRepository.GetAll().Where(n => ids.Contains(n.Id)).ToListAsync();
     }
 
     public IActionResult Index(TextSearchDto filters)
@@ -72,12 +95,13 @@ public class ApiKeysController : BaseController
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
         ViewData["Title"] = "Create API Key";
         ViewData["Menu"] = "ApiKeys";
         ViewData["Icon"] = HeroIcons.Render("plus", size: 5);
 
+        await LoadNamespacesViewData();
         return View("Form", new ApiKeyDto());
     }
 
@@ -91,10 +115,15 @@ public class ApiKeysController : BaseController
 
         if (!ModelState.IsValid)
         {
+            await LoadNamespacesViewData();
             return View("Form", dto);
         }
 
-        var apiKey = new ApiKey { Name = dto.Name };
+        var apiKey = new ApiKey
+        {
+            Name = dto.Name,
+            AllowedNamespaces = await ResolveNamespaces(dto.AllowedNamespaceIds),
+        };
 
         await _apiKeyManager.Create(apiKey);
 
@@ -113,7 +142,13 @@ public class ApiKeysController : BaseController
         if (apiKey == null)
             return NotFound();
 
-        var dto = new ApiKeyDto { Name = apiKey.Name };
+        var dto = new ApiKeyDto
+        {
+            Name = apiKey.Name,
+            AllowedNamespaceIds = apiKey.AllowedNamespaces.Select(n => n.Id).ToList(),
+        };
+
+        await LoadNamespacesViewData();
         return PartialView("_EditForm", dto);
     }
 
@@ -127,10 +162,15 @@ public class ApiKeysController : BaseController
 
         if (!ModelState.IsValid)
         {
+            await LoadNamespacesViewData();
             return PartialView("_EditForm", dto);
         }
 
         await _apiKeyManager.Rename(apiKey, dto.Name);
+        await _apiKeyManager.SetAllowedNamespaces(
+            apiKey,
+            await ResolveNamespaces(dto.AllowedNamespaceIds)
+        );
         return Json(new { Success = true, Redirect = Url.Action(nameof(Show), new { id }) });
     }
 

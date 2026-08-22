@@ -49,10 +49,19 @@ public class ApiKeyAuthHandler : AuthenticationHandler<AuthenticationSchemeOptio
         Context.Items[ApiKeyNameItemKey] = apiKey.Name;
         Context.Items[ApiKeyIdItemKey] = apiKey.Id;
 
-        // Check namespace scoping for namespace proxy endpoints
+        // Enforce namespace scoping. A scoped key (non-empty AllowedNamespaces)
+        // may only use the namespace endpoints it is scoped to — including the
+        // global /mcp endpoint, which has no slug and exposes every server.
         var slug = Context.Request.RouteValues["slug"] as string;
-        if (!string.IsNullOrEmpty(slug) && apiKey.AllowedNamespaces.Count > 0)
+        if (apiKey.AllowedNamespaces.Count > 0)
         {
+            if (string.IsNullOrEmpty(slug))
+            {
+                return AuthenticateResult.Fail(
+                    "API key is scoped to specific namespaces and cannot access the global endpoint"
+                );
+            }
+
             var hasAccess = apiKey.AllowedNamespaces.Any(n => n.Slug == slug);
             if (!hasAccess)
             {
