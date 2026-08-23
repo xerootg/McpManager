@@ -1,5 +1,6 @@
 stages:
   - build
+  - deploy
 
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:latest
@@ -23,5 +24,21 @@ build-image:
     # times out. See pipeline #618.
     - docker build --network=host -t "$IMAGE_TAG" .
     - docker push "$IMAGE_TAG"
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  # Runs in-cluster as the gitlab/default ServiceAccount; argo-things grants it
+  # get/watch/patch on deployment/mcpmanager only (configs/mcpmanager/
+  # ci-deploy-rbac.yaml). Bumping the CI-owned image-commit annotation changes
+  # the pod template, which re-pulls :latest (imagePullPolicy: Always). The
+  # ArgoCD Application ignores this annotation so selfHeal won't revert it.
+  image: alpine/k8s:1.33.4
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - kubectl -n mcpmanager patch deployment mcpmanager --type merge -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"mcpmanager.themissing.xyz/image-commit\":\"$CI_COMMIT_SHORT_SHA\"}}}}}"
+    - kubectl -n mcpmanager rollout status deployment/mcpmanager --timeout=300s
   only:
     - main
